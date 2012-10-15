@@ -1,0 +1,53 @@
+#VRML V2.0 utf8
+#© 2005 Leendert Ullersma, Arjen van der Ende
+
+EXTERNPROTO Sprite [
+  ## Global variables
+  exposedField SFVec3f    translation
+  exposedField SFRotation rotation
+  exposedField SFVec3f    scale
+  exposedField MFString   texture
+  exposedField SFFloat    transparency
+  exposedField SFBool     play
+  exposedField SFInt32    x
+  exposedField SFInt32    y
+  exposedField SFBool     x_overlap
+  exposedField SFBool     y_overlap
+  exposedField SFInt32    x_direction
+  exposedField SFInt32    y_direction
+]
+[
+  "sprite.wrl#Sprite"
+]
+
+PROTO Ghost [
+  exposedField SFVec3f    translation  0 -5 -1
+  exposedField SFRotation rotation     0  0  1 0
+  exposedField SFVec3f    scale        1  1  1
+  exposedField MFString   texture      "../img/blinky_up.gif"
+  exposedField SFFloat    transparency 0
+  exposedField SFBool     play         FALSE
+  exposedField SFInt32    x            0
+  exposedField SFInt32    y            0
+  exposedField SFBool     x_overlap    TRUE
+  exposedField SFBool     y_overlap    FALSE
+  exposedField SFInt32    x_direction  0
+  exposedField SFInt32    y_direction  0
+  
+  ## Specific ghost variables
+  exposedField SFInt32 index     0
+  exposedField SFBool  captured  TRUE
+  exposedField SFBool  dead      FALSE
+  exposedField SFBool  immune    FALSE
+  exposedField SFInt32 leaveTime 0
+]
+{
+  Sprite {
+    translation  IS translation
+    rotation     IS rotation
+    scale        IS scale
+    texture      IS texture
+    transparency IS transparency
+    play         IS play
+  }
+}

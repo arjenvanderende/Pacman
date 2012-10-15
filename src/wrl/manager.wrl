@@ -1,0 +1,316 @@
+#VRML V2.0 utf8
+#© 2005 Leendert Ullersma, Arjen van der Ende
+
+####################
+
+EXTERNPROTO KeySensor [
+  eventIn SFBool eventsProcessed
+  exposedField SFBool enabled
+  eventOut SFInt32 keyPress
+  eventOut SFInt32 keyRelease
+  eventOut SFInt32 actionKeyPress
+  eventOut SFInt32 actionKeyRelease
+  eventOut SFBool shiftKey_changed
+  eventOut SFBool controlKey_changed
+  eventOut SFBool altKey_changed
+  eventOut SFBool isActive
+]
+[
+ "urn:inet:blaxxun.com:node:KeySensor",
+ "http://www.blaxxun.com/vrml/protos/nodes.wrl#KeySensor"
+]
+
+EXTERNPROTO SoundEffect [
+  eventIn      SFBool   play
+  exposedField SFBool   loop
+  exposedField MFString url
+]
+[
+  "sound.wrl#SoundEffect"
+]
+
+PROTO GameManager [
+  eventIn  SFInt32 setState
+  eventOut SFInt32 onGameKeyPress
+  eventOut SFBool  isGameRunning
+  eventOut SFTime  onUpdate
+  
+  exposedField SFNode PACMAN NULL
+  exposedField SFNode GHOST1 NULL
+  exposedField SFNode GHOST2 NULL
+  exposedField SFNode GHOST3 NULL
+  exposedField SFNode GHOST4 NULL
+  exposedField SFNode INFO   NULL
+  exposedField SFNode LIFE1  NULL
+  exposedField SFNode LIFE2  NULL
+  exposedField SFNode LIFE3  NULL
+]
+{
+  ## Global game timer
+  DEF GAME_TIMER TimeSensor {
+    enabled TRUE
+    cycleInterval 0.11
+    loop TRUE
+  }
+  
+  ## Enable keyboard input
+  DEF KEYBOARD KeySensor { }
+
+  ## Sound effect channel
+  DEF GLOBAL_SOUND SoundEffect {
+    url "../sounds/song.wav"
+  }
+  DEF SOUND_GHOST SoundEffect {
+    url "../sounds/ghost.wav"
+  }
+  DEF SOUND_SCARED SoundEffect {
+    url "../sounds/scared.wav"
+  }
+  
+  ## Manager control script  
+  DEF MANAGER_SCRIPT Script {
+    ## Events
+    eventIn  SFInt32 setState       IS setState
+    eventIn  SFInt32 onKeyPress
+    eventIn  SFTime  onCycleTime
+    eventIn  SFBool  isSoundPlaying
+
+    eventOut SFBool  isGameRunning  IS isGameRunning
+    eventOut SFInt32 onGameKeyPress IS onGameKeyPress
+    eventOut SFTime  onUpdate       IS onUpdate
+
+    ## Includes
+    field SFNode SOUND  USE GLOBAL_SOUND
+    field SFNode SOUND_GHOST  USE SOUND_GHOST
+    field SFNode SOUND_SCARED USE SOUND_SCARED
+    field SFNode TIMER  USE GAME_TIMER
+    field SFNode PACMAN IS  PACMAN
+    field SFNode GHOST1 IS  GHOST1
+    field SFNode GHOST2 IS  GHOST2
+    field SFNode GHOST3 IS  GHOST3
+    field SFNode GHOST4 IS  GHOST4
+    field SFNode INFO   IS  INFO
+    field SFNode LIFE1  IS  LIFE1
+    field SFNode LIFE2  IS  LIFE2
+    field SFNode LIFE3  IS  LIFE3
+    
+    ## State 0: Game initialization
+    ## State 1: Game in progress
+    ## State 2: Game finished
+    field SFInt32 state       0
+    field SFInt32 state_timer 45
+    field SFInt32 level       1
+    field SFInt32 lives       3
+    field SFBool  sound_play  FALSE
+    field SFInt32 sound_nr    -1
+    
+    url "javascript:
+      function initialize( value, time ) {
+        setState(-1, 0);
+      }
+      
+      function showGhosts( value ) {
+        GHOST1.setVisible = value;
+        GHOST2.setVisible = value;
+        GHOST3.setVisible = value;
+        GHOST4.setVisible = value;
+      }
+
+      function reset( value ) {
+        PACMAN.reset = value;
+        GHOST1.reset = TRUE;
+        GHOST2.reset = TRUE;
+        GHOST3.reset = TRUE;
+        GHOST4.reset = TRUE;
+        showGhosts( TRUE );
+      }
+      
+      function loseLife() {
+        lives -= 1;
+        LIFE1.transparency = (lives < 3);
+        LIFE2.transparency = (lives < 2);
+        LIFE3.transparency = (lives < 1);
+      }
+      
+      function setState( value, time ) {
+        state = value;
+
+        /* Kill playing sounds */
+        sound_nr = -1;
+        SOUND.play = FALSE;
+        SOUND_GHOST.loop = FALSE; SOUND_GHOST.play = FALSE;
+        SOUND_SCARED.loop = FALSE; SOUND_SCARED.play = FALSE;
+        
+        /* Game start state */
+        if( state == -1 ) {
+          state_timer = 0;
+        }
+        if( state == 0 ) {
+          isGameRunning = FALSE;
+          state_timer = 45;
+          INFO.string = 'GET READY!';
+          reset(FALSE);
+
+          /* Setup intro-sound  */
+          SOUND.url = '../sounds/song.wav';
+          sound_play = TRUE;         
+        }
+        
+        /* Game playing state */
+        else if ( state == 1 ) {
+          isGameRunning = TRUE;
+          INFO.string = '';
+        }
+        
+        /* Pacman dead state */
+        else if ( state == 2 ) {
+          isGameRunning = FALSE;
+          state_timer = 8;
+          showGhosts( FALSE );
+          loseLife();
+
+          /* Setup death-sound  */
+          SOUND.url = '../sounds/death.wav';
+          sound_play = TRUE;
+        }
+        
+        /* New level state */
+        else if ( state == 3 ) {
+          isGameRunning = FALSE;
+          state_timer = 9;
+          level += 1;
+          INFO.string[0] = 'LEVEL ' + level;
+          reset(TRUE);
+
+          /* Setup win-sound  */
+          SOUND.url = '../sounds/win.wav';
+          sound_play = TRUE;
+        }
+        
+        /* Restart state after dead */
+        else if( state == 4 ) {
+          isGameRunning = FALSE;
+          state_timer = 20;
+          INFO.string = 'GET READY!';
+          reset(FALSE);
+        }
+        
+        else if( state == 5 ) {
+          INFO.string = 'GAME OVER';
+          state_timer = 20;
+          PACMAN.setVisible = FALSE;
+        }
+      }
+      
+      function onKeyPress( value, time ) {
+        if( state == 1 ) {
+          /* 'P' - key for pause */
+          if( value == 80 ) {
+            TIMER.enabled = !TIMER.enabled;
+            isGameRunning = !isGameRunning;
+
+            /* Kill sound */
+            sound_nr = -1;
+            SOUND_GHOST.loop = FALSE; SOUND_GHOST.play = FALSE;
+            SOUND_SCARED.loop = FALSE; SOUND_SCARED.play = FALSE;
+            
+            /* Update game info */
+            if (isGameRunning) { INFO.string = ''; }
+            else { INFO.string = 'PAUSED'; }
+          }
+          else {
+            onGameKeyPress = value;
+          }
+        }
+      }
+      
+      function onCycleTime( value, time ) {
+        /* Update timer */
+        if( state_timer > 0 ) { state_timer -= 1; }
+
+        if( sound_play == TRUE ) {
+          sound_play = FALSE;
+          SOUND.play = TRUE;
+        }
+
+        if( state == -1 ) {
+          if ( state_timer == 0 ) {
+            setState(0, time);
+          }
+        }
+        
+        /* Game start state */
+        if( state == 0 ) {
+          if ( state_timer == 0 ) {
+            setState(1, time);
+          }
+        }
+        
+        /* Game playing state */
+        else if( state == 1 ) {
+          if( PACMAN.invincible > 0 ) {
+            if( sound_nr != 1 ) {
+              sound_nr = 1;
+              SOUND_GHOST.loop = FALSE; SOUND_GHOST.play = FALSE;
+              SOUND_SCARED.loop = TRUE; SOUND_SCARED.play = TRUE;
+            }
+          }
+          else {
+            if( sound_nr != 0 ) {
+              sound_nr = 0;
+              SOUND_GHOST.loop = TRUE; SOUND_GHOST.play = TRUE;
+              SOUND_SCARED.loop = FALSE; SOUND_SCARED.play = FALSE;
+            }
+          }
+        
+          onUpdate = time;
+          if( PACMAN.dead == TRUE ) {
+            setState(2, time);
+          }
+          if( PACMAN.dot_count == 0 ) {
+            setState(3, time);
+          }
+        }
+        
+        /* Pacman dead state */
+        else if( state == 2 ) {
+          if( state_timer == 0 ) {
+            if( lives > 0 ) {
+              setState( 4, time );
+            }
+            else {
+              setState( 5, time );
+            }
+          }
+        }
+        
+        /* New level state */
+        else if( state == 3 ) {
+          if( state_timer == 0 ) {
+            setState(1, time );
+          }
+        }
+        
+        /* Restart after dead state */
+        else if( state == 4 ) {
+          if( state_timer == 0 ) {
+            setState(1, time );
+          }
+        }
+        
+        else if( state == 5 ) {
+          if( state_timer == 0 ) {
+            Browser.loadURL('mainmenu.wrl', '');
+          }
+        }
+      }
+    "
+  }
+  
+  ## Timer events
+  ROUTE GAME_TIMER.cycleTime    TO MANAGER_SCRIPT.onCycleTime
+  
+  ## Keyboard events
+  ROUTE KEYBOARD.keyPress       TO MANAGER_SCRIPT.onKeyPress
+  ROUTE KEYBOARD.actionKeyPress TO MANAGER_SCRIPT.onKeyPress
+}

@@ -1,0 +1,104 @@
+#VRML V2.0 utf8
+#© 2005 Leendert Ullersma, Arjen van der Ende
+
+####################
+
+PROTO MenuItem [
+  exposedField SFVec3f  translation 0 0 0
+  exposedField MFString texture1    ""
+  exposedField MFString texture2    ""
+  exposedField MFString url         ""
+]
+{
+  Transform {
+    translation IS translation
+    children [
+      DEF MENUITEM_SENSOR TouchSensor { }
+      Shape {
+        appearance Appearance {
+          texture DEF MENUITEM_TEXTURE ImageTexture {
+            url IS texture1
+          }
+        }
+        geometry Box {
+          size 263 52 0.1
+        }
+      }
+    ]
+  }
+  
+  DEF MENUITEM_SCRIPT Script {
+    ## Events
+    eventIn SFBool isOver
+    eventIn SFBool isActive
+    
+    ## Includes
+    field SFNode   TEXTURE  USE MENUITEM_TEXTURE
+    field MFString texture1 IS texture1
+    field MFString texture2 IS texture2    
+    field MFString location IS url
+    
+    url "javascript:
+      function isOver( value, time ) {
+        if( value ) {
+          TEXTURE.url = texture2;
+        }
+        else {
+          TEXTURE.url = texture1;
+        }
+      }
+      
+      function isActive( value, time ) {
+        if( value ) {
+          Browser.loadURL(location, '');
+        }
+      }
+    "
+  }
+  
+  ROUTE MENUITEM_SENSOR.isOver   TO MENUITEM_SCRIPT.isOver
+  ROUTE MENUITEM_SENSOR.isActive TO MENUITEM_SCRIPT.isActive
+}
+
+####################
+
+WorldInfo {
+  title "Pacman"
+}
+
+NavigationInfo {
+  type "none"
+}
+
+Viewpoint {
+  position 0 20 400
+}
+
+DEF TITLELOGO Transform {
+  translation 0 120 0
+  children [
+    Shape {
+      appearance Appearance {
+        texture ImageTexture {
+          url "../img/title.jpg"
+        }
+      }
+      geometry Box {
+        size 224 50 0.1
+      }
+    }
+  ]
+}
+
+MenuItem {
+  texture1 "../img/menu1.gif"
+  texture2 "../img/menu1_over.gif"
+  url      "game.wrl"
+}
+
+MenuItem {
+  translation 0 -40 0
+  texture1 "../img/menu2.gif"
+  texture2 "../img/menu2_over.gif"
+  url      "http://www.few.vu.nl/~vr0523/"
+}

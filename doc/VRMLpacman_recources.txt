@@ -1,0 +1,3 @@
+http://www.masswerk.at/JavaPac/pacman-howto.txt
+
+http://www.masswerk.at/JavaPac/images/g11.gif

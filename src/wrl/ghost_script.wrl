@@ -1,0 +1,602 @@
+#VRML V2.0 utf8
+#© 2005 Leendert Ullersma, Arjen van der Ende
+
+####################
+
+EXTERNPROTO SoundEffect [
+  eventIn      SFBool   play
+  exposedField MFString url
+]
+[
+  "sound.wrl#SoundEffect"
+]
+
+PROTO GhostScript [
+  ## events
+  eventIn SFTime onUpdate
+  eventIn SFBool setVisible
+  eventIn SFBool reset
+
+  ## includes
+  exposedField SFNode SPRITE NULL
+  exposedField SFNode GRID   NULL
+  exposedField SFNode PACMAN NULL
+  
+  exposedField SFBool timerEnabled FALSE
+]
+{
+  DEF GHOSTTIMER TimeSensor {
+    enabled IS timerEnabled
+    cycleInterval 0.115
+    loop TRUE
+  }
+
+  DEF SOUND_EATGHOST SoundEffect {
+    url "../sounds/eatghost.wav"
+  }
+
+  DEF GHOSTSCRIPT Script {
+    ## Events
+    eventIn SFTime onUpdate   IS onUpdate
+    eventIn SFBool setVisible IS setVisible
+    eventIn SFBool reset      IS reset
+
+    ## Includes
+    field SFNode  SPRITE     IS SPRITE
+    field SFNode  GRID       IS GRID
+    field SFNode  PACMAN     IS PACMAN
+    field SFNode  SOUND_EATGHOST USE SOUND_EATGHOST
+    field SFNode  GHOSTTIMER USE GHOSTTIMER
+
+    ## Ghost Location
+    field SFInt32 back_direction -1
+    field SFInt32 inv_count       0
+
+    url "javascript:
+      function setVisible( value, time ) {
+        if( value ) {
+          SPRITE.transparency = 0;
+        }
+        else {
+          SPRITE.transparency = 1;
+        }
+      }
+
+      function reset( value, time ) {
+        if( value ) {
+          SPRITE.dead = FALSE;
+          SPRITE.transparency = 0;
+          SPRITE.immune = FALSE;          
+          if( SPRITE.index == 0 ) {
+            SPRITE.translation = new SFVec3f(0, 2.1, -40);
+            SPRITE.texture     = '../img/ghost0_left.gif';
+            SPRITE.x           =  12;
+            SPRITE.y           =  10;
+            SPRITE.x_direction = -1;
+            SPRITE.y_direction =  0;
+            SPRITE.x_overlap   = TRUE;
+            SPRITE.y_overlap   = FALSE;
+            SPRITE.captured    = FALSE;
+            SPRITE.dead        = FALSE;
+          }
+          else if( SPRITE.index == 1 ) {
+            SPRITE.translation = new SFVec3f(0, 2.1, -5);
+            SPRITE.texture     = '../img/ghost1_up.gif';
+            SPRITE.x           =  12;
+            SPRITE.y           =  13;
+            SPRITE.x_direction =  0;
+            SPRITE.y_direction = -1;
+            SPRITE.x_overlap   = TRUE;
+            SPRITE.y_overlap   = TRUE;
+            SPRITE.captured    = TRUE;
+          }
+          else if( SPRITE.index == 2 ) {
+            SPRITE.translation = new SFVec3f(-20, 2.1, -5);
+            SPRITE.texture     = '../img/ghost2_up.gif';
+            SPRITE.x           =  10;
+            SPRITE.y           =  13;
+            SPRITE.x_direction =  0;
+            SPRITE.y_direction = -1;
+            SPRITE.x_overlap   = TRUE;
+            SPRITE.y_overlap   = TRUE;
+            SPRITE.captured    = TRUE;
+            SPRITE.leaveTime   = 50;
+          }
+          else if( SPRITE.index == 3 ) {
+            SPRITE.translation = new SFVec3f(20, 2.1, -5);
+            SPRITE.texture     = '../img/ghost3_up.gif';
+            SPRITE.x           =  14;
+            SPRITE.y           =  13;
+            SPRITE.x_direction =  0;
+            SPRITE.y_direction = -1;
+            SPRITE.x_overlap   = TRUE;
+            SPRITE.y_overlap   = TRUE;
+            SPRITE.captured    = TRUE;
+            SPRITE.leaveTime   = 100;
+          }
+        }
+      }
+
+      function onUpdate( value, time ) {
+        x = SPRITE.x; x_overlap = SPRITE.x_overlap;
+        y = SPRITE.y; y_overlap = SPRITE.y_overlap;
+
+        /* Update timer interval */
+        if( PACMAN.invincible > 0 && SPRITE.immune == FALSE && SPRITE.dead == FALSE ) {
+          GHOSTTIMER.cycleInterval = 0.23;
+        }
+        else {
+          GHOSTTIMER.cycleInterval = 0.115;
+        }
+
+        /* Update the direction of the ghost */
+        if( SPRITE.captured ) {
+          /* Check if the ghost may leave the pen, if it's there */
+          if( SPRITE.leaveTime > 0 ) { SPRITE.leaveTime -= 1; }
+          if( SPRITE.leaveTime == 0 ) {
+
+            /* Coordinate the ghost the the outside */
+            if( x != 12 ) {
+              if( x < 12 ) { SPRITE.x_direction = 1; }
+              if( x > 12 ) { SPRITE.x_direction = -1; }
+            }
+            else if ( x_overlap ) {
+              SPRITE.x_direction = 0;
+              SPRITE.y_direction = -1;
+              if( y <= 10 && y_overlap == FALSE ) {
+                // Reset variables
+                SPRITE.captured = FALSE;
+
+                // Set a new heading
+                SPRITE.y_direction = 0;
+                if( (PACMAN.x - x) > 0 ) {
+                  SPRITE.x_direction = 1;
+                }
+                else {
+                  SPRITE.x_direction = -1;
+                }
+              }
+            }
+          }
+          /* Bounce ghosts up & down */
+          else {
+            if( y <= 12 && y_overlap == TRUE ) { SPRITE.y_direction = 1; }
+            if( y >= 13 && y_overlap == TRUE ) { SPRITE.y_direction = -1; }
+          }
+        }
+        else if( SPRITE.dead ) {
+          SetDirectionToHome();
+        }
+        else {
+          /* Only check when not between 2 dots */
+          if( x_overlap == FALSE && y_overlap == FALSE ) {
+            direction_count = 4;
+            allowUp = allowDown = allowLeft = allowRight = TRUE;
+
+            /* Check which directions we can go to next */
+            if( y <= 0 || (allowUp && (GRID.grid[y-1].values[x] < 1 || GRID.grid[y-1].values[x] > 3 ))) {
+              allowUp = FALSE;
+              direction_count -= 1;
+              if( SPRITE.y_direction == -1 ) { SPRITE.y_direction = 0; }
+            }
+            if( y >= GRID.height -1 || (allowDown && (GRID.grid[y+1].values[x] < 1 || GRID.grid[y+1].values[x] > 3 ))) {
+              allowDown = FALSE;
+              direction_count -= 1;
+              if( SPRITE.y_direction == 1 ) { SPRITE.y_direction = 0; }
+            }
+            if( x <= 0 || (allowLeft && (GRID.grid[y].values[x-1] < 1 || GRID.grid[y].values[x-1] > 3 ))) {
+              allowLeft = FALSE;
+              direction_count -= 1;
+              if( SPRITE.x_direction == -1 ) { SPRITE.x_direction = 0; }
+            }
+            if( x >= GRID.width -1 || (allowRight && (GRID.grid[y].values[x+1] < 1 || GRID.grid[y].values[x+1] > 3 ))) {
+              allowRight = FALSE;
+              direction_count -= 1;
+              if( SPRITE.x_direction == 1 ) { SPRITE.x_direction = 0; }
+            }
+
+            /* Determine new direction */
+            if( ((SPRITE.x_direction == 0 && SPRITE.y_direction == 0) || direction_count > 2 ) ) {
+              if( PACMAN.invincible > 0 && SPRITE.immune == FALSE ) {
+                SetDirectionGhost2( allowUp, allowDown, allowLeft, allowRight );
+              }
+              else {
+                if( PACMAN.invincible <= 0 ) { SPRITE.immune = FALSE; }
+                if( SPRITE.index == 0 ) {
+                  SetDirectionGhost0( allowUp, allowDown, allowLeft, allowRight );
+                }
+                else if( SPRITE.index == 1 ) {
+                  SetDirectionGhost2( allowUp, allowDown, allowLeft, allowRight );
+                }
+                else if( SPRITE.index == 2 ) {
+                  SetDirectionGhost1( allowUp, allowDown, allowLeft, allowRight );
+                }
+                else if( SPRITE.index == 3 ) {
+                  SetDirectionGhost2( allowUp, allowDown, allowLeft, allowRight );
+                }
+              }
+            }
+          }
+        }
+
+        /* Update position */
+        if( SPRITE.x_direction < 0 ) {
+          if( !x_overlap ) { SPRITE.x -= 1; }
+          SPRITE.x_overlap = !x_overlap;
+        }
+        else if( SPRITE.x_direction > 0 ) {
+          if( x_overlap ) { SPRITE.x += 1; }
+          SPRITE.x_overlap = !x_overlap;
+        }
+        else if( SPRITE.y_direction < 0 ) {
+          if( !y_overlap ) { SPRITE.y -= 1; }
+          SPRITE.y_overlap = !y_overlap;
+        }
+        else if( SPRITE.y_direction > 0 ) {
+          if( y_overlap ) { SPRITE.y += 1; }
+          SPRITE.y_overlap = !y_overlap;
+        }
+
+        /* Check for teleport */
+        if (SPRITE.x == 0  && SPRITE.y == 13 && SPRITE.x_direction < 0 ) { SPRITE.x = 25; }
+        if (SPRITE.x == 25 && SPRITE.y == 13 && SPRITE.x_direction > 0 ) { SPRITE.x = 0;  }
+
+        /* Update absolute position */
+        new_x = (SPRITE.x - 12.5) * 10 + ( SPRITE.x_overlap ? 5 : 0 );
+        new_y = (SPRITE.y - 14)   * 10 + ( SPRITE.y_overlap ? 5 : 0 );
+        SPRITE.translation = new SFVec3f(new_x, 4.1, new_y);
+
+        /* Check collision with pacman */
+        dx = PACMAN.x - SPRITE.x; if( dx < 0 ) { dx *= -1; }
+        dy = PACMAN.y - SPRITE.y; if( dy < 0 ) { dy *= -1; }
+        if((SPRITE.dead == FALSE) && (dx + dy <= 1)) {
+          if( PACMAN.invincible == 0 || SPRITE.immune == TRUE ) { PACMAN.onDeath = TRUE; }
+          else { SOUND_EATGHOST.play = TRUE; SPRITE.dead = TRUE; }
+        }
+
+        /* Check if pacman ate another superpill, while I was (un)dead */
+        if( SPRITE.dead == FALSE && inv_count < PACMAN.inv_count ) {
+          inv_count = PACMAN.inv_count;
+          SPRITE.immune = FALSE;
+        }
+        
+        updateTexture();
+      }
+
+      function SetDirectionToHome() {
+        x = SPRITE.x; x_overlap = SPRITE.x_overlap;
+        y = SPRITE.y; y_overlap = SPRITE.y_overlap;
+      
+        low_val = 99;
+        if( x_overlap == FALSE && y_overlap == FALSE ) {
+          if( x > 0 ) {
+            value = GRID.lutToHome[y].values[x-1];
+            if( value < low_val ) {
+              low_val = value;
+              SPRITE.x_direction = -1;
+              SPRITE.y_direction =  0;
+            }
+          }
+          if( x < GRID.width -1 ) {
+            value = GRID.lutToHome[y].values[x+1];
+            if( value < low_val ) {
+              low_val = value;
+              SPRITE.x_direction =  1;
+              SPRITE.y_direction =  0;
+            }
+          }
+          if( y > 0 ) {
+            value = GRID.lutToHome[y-1].values[x];
+            if( value < low_val ) {
+              low_val = value;
+              SPRITE.x_direction =  0;
+              SPRITE.y_direction = -1;
+            }
+          }
+          if( y < GRID.height -1 ) {
+            value = GRID.lutToHome[y+1].values[x];
+            if( value < low_val ) {
+              low_val = value;
+              SPRITE.x_direction =  0;
+              SPRITE.y_direction =  1;
+            }
+          }
+        }
+
+        /* Re-entry into prison */
+        if( x >= 12 && x <= 13 && y == 10 ) {
+          SPRITE.x_direction = 0;
+          SPRITE.y_direction = 1;
+          if( x_overlap == FALSE ) {
+            SPRITE.x_direction = 1;
+            SPRITE.y_direction = 0;
+          }
+          if ( x > 12 ) {
+            SPRITE.x_direction = -1;
+            SPRITE.y_direction = 0;
+          }
+        }
+
+        /* Respawn */
+        if( x == 12 && x_overlap == TRUE && y == 13 && y_overlap == FALSE ) {
+          SPRITE.dead = FALSE;
+          SPRITE.captured = TRUE;
+          SPRITE.immune = TRUE;
+        }
+      }
+
+      function SetDirectionToPointX( toX, toY, allowUp, allowDown, allowLeft, allowRight ) {
+        x = SPRITE.x; x_overlap = SPRITE.x_overlap;
+        y = SPRITE.y; y_overlap = SPRITE.y_overlap;
+        
+        /* Reset direction */
+        SPRITE.x_direction = 0;
+        SPRITE.y_direction = 0;
+
+        dx = toX - x; dx_mul = 1;
+        dy = toY - y; dy_mul = 1;
+
+        if( dx < 0 ) { dx *= -1; dx_mul = -1; }
+        if( dy < 0 ) { dy *= -1; dy_mul = -1; }
+
+        if( dx > dy ) {
+          if( dx_mul == 1 ) {
+            if (allowRight)  { SPRITE.x_direction = 1;  }
+          }
+          else {
+            if(allowLeft)    { SPRITE.x_direction = -1; }
+          }
+          if( SPRITE.x_direction == 0 ) {
+            if( dy_mul == 1 ) {
+              if (allowDown) { SPRITE.y_direction = 1; }
+            }
+            else {
+              if (allowUp)   { SPRITE.y_direction = -1; }
+            }
+          }
+        }
+        else {
+          if( dy_mul == 1 ) {
+            if (allowDown)    { SPRITE.y_direction = 1; }
+          }
+          else {
+            if (allowUp)      { SPRITE.y_direction = -1; }
+          }
+          if( SPRITE.y_direction == 0 ) {
+            if( dx_mul == 1 ) {
+              if (allowRight) { SPRITE.x_direction = 1; }
+            }
+            else {
+              if(allowLeft)   { SPRITE.x_direction = -1; }
+            }
+          }
+        }
+        if( SPRITE.x_direction == 0 && SPRITE.y_direction == 0 ) {
+          found = FALSE;
+          while( found == FALSE ) {
+            new_dir = Math.floor( Math.random() * 4 );
+            if( new_dir != back_direction ) {
+              if( new_dir == 0 && allowUp ) {
+                SPRITE.y_direction = -1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+              else if( new_dir == 1 && allowRight ) {
+                SPRITE.x_direction = 1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+              else if( new_dir == 2 && allowDown ) {
+                SPRITE.y_direction = 1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+              else if( new_dir == 3 && allowLeft ) {
+                SPRITE.x_direction = -1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+            }
+          }
+        }
+      }
+
+      function SetDirectionToPointY( toX, toY, allowUp, allowDown, allowLeft, allowRight ) {
+        x = SPRITE.x; x_overlap = SPRITE.x_overlap;
+        y = SPRITE.y; y_overlap = SPRITE.y_overlap;
+
+        /* Reset the direction */
+        SPRITE.x_direction = 0;
+        SPRITE.y_direction = 0;
+
+        dx = toX - x; dx_mul = 1;
+        dy = toY - y; dy_mul = 1;
+
+        if( dx < 0 ) { dx *= -1; dx_mul = -1; }
+        if( dy < 0 ) { dy *= -1; dy_mul = -1; }
+
+        if( dy > dx ) {
+          if( dy_mul == 1 ) {
+            if (allowDown) {
+              SPRITE.y_direction = 1;
+            }
+          }
+          else {
+            if (allowUp) {
+              SPRITE.y_direction = -1;
+            }
+          }
+          if( SPRITE.y_direction == 0 ) {
+            if( dx_mul == 1 ) {
+              if (allowRight) {
+                SPRITE.x_direction = 1;
+              }
+            }
+            else {
+              if(allowLeft) {
+                SPRITE.x_direction = -1;
+              }
+            }
+          }
+        }
+        else {
+          if( dx_mul == 1 ) {
+            if (allowRight) {
+              SPRITE.x_direction = 1;
+            }
+          }
+          else {
+            if(allowLeft) {
+              SPRITE.x_direction = -1;
+            }
+          }
+          if( SPRITE.x_direction == 0 ) {
+            if( dy_mul == 1 ) {
+              if (allowDown) {
+                SPRITE.y_direction = 1;
+              }
+            }
+            else {
+              if (allowUp) {
+                SPRITE.y_direction = -1;
+              }
+            }
+          }
+        }
+
+        if( SPRITE.x_direction == 0 && SPRITE.y_direction == 0 ) {
+          found = FALSE;
+          while( found == FALSE ) {
+            new_dir = Math.floor( Math.random() * 4 );
+            if( new_dir != back_direction ) {
+              if( new_dir == 0 && allowUp ) {
+                SPRITE.y_direction = -1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+              else if( new_dir == 1 && allowRight ) {
+                SPRITE.x_direction = 1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+              else if( new_dir == 2 && allowDown ) {
+                SPRITE.y_direction = 1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+              else if( new_dir == 3 && allowLeft ) {
+                SPRITE.x_direction = -1;
+                back_direction = (new_dir + 2) % 4;
+                found = TRUE;
+              }
+            }
+          }
+        }
+      }
+
+      function SetDirectionGhost0( allowUp, allowDown, allowLeft, allowRight ) {
+        SetDirectionToPointX( PACMAN.x, PACMAN.y, allowUp, allowDown, allowLeft, allowRight );
+      }
+
+      function SetDirectionGhost1( allowUp, allowDown, allowLeft, allowRight ) {
+        x = SPRITE.x; to_x = PACMAN.x;
+        y = SPRITE.y; to_y = PACMAN.y;
+        
+        if( PACMAN.y_direction == -1 ) {
+          if( y > PACMAN.y ) {
+            to_y = 0;
+          }
+        }
+        else if( PACMAN.y_direction == 1 ) {
+          if( y < PACMAN.y ) {
+            to_y = GRID.height -1;
+          }
+        }
+        else if( PACMAN.x_direction == -1 ) {
+          if( x > PACMAN.x) {
+            to_x = 0;
+          }
+        }
+        else if( PACMAN.x_direction == 1 ) {
+          if( x < PACMAN.x) {
+            to_x = GRID.width -1;
+          }
+        }
+        SetDirectionToPointY( to_x, to_y, allowUp, allowDown, allowLeft, allowRight );
+      }
+
+      function SetDirectionGhost2( allowUp, allowDown, allowLeft, allowRight ) {
+        SPRITE.x_direction = 0;
+        SPRITE.y_direction = 0;
+
+        found = FALSE;
+        while( found == FALSE ) {
+          new_dir = Math.floor( Math.random() * 4 );
+          if( new_dir != back_direction ) {
+            if( new_dir == 0 && allowUp ) {
+              SPRITE.y_direction = -1;
+              back_direction = (new_dir + 2) % 4;
+              found = TRUE;
+            }
+            else if( new_dir == 1 && allowRight ) {
+              SPRITE.x_direction = 1;
+              back_direction = (new_dir + 2) % 4;
+              found = TRUE;
+            }
+            else if( new_dir == 2 && allowDown ) {
+              SPRITE.y_direction = 1;
+              back_direction = (new_dir + 2) % 4;
+              found = TRUE;
+            }
+            else if( new_dir == 3 && allowLeft ) {
+              SPRITE.x_direction = -1;
+              back_direction = (new_dir + 2) % 4;
+              found = TRUE;
+            }
+          }
+        }
+      }
+      
+      function updateTexture() {
+        if( SPRITE.dead ) {
+          if( SPRITE.x_direction == 1 ) {
+            SPRITE.texture = '../img/eyes_right.gif';
+          }
+          else if( SPRITE.x_direction == -1 ) {
+            SPRITE.texture = '../img/eyes_left.gif';
+          }
+          else if( SPRITE.y_direction == -1 ) {
+            SPRITE.texture = '../img/eyes_up.gif';
+          }
+          else if( SPRITE.y_direction == 1 ) {
+            SPRITE.texture = '../img/eyes_down.gif';
+          }
+        }
+        else if( PACMAN.invincible > 0 && SPRITE.immune == FALSE ) {
+          if( PACMAN.invincible > 20 ) {
+            SPRITE.texture = '../img/scared.gif';
+          }
+          else {
+            SPRITE.texture = '../img/scared_blink.gif';
+          }
+        }
+        else {
+          if( SPRITE.x_direction == 1 ) {
+            SPRITE.texture[0] = '../img/ghost' + SPRITE.index + '_right.gif';
+          }
+          else if( SPRITE.x_direction == -1 ) {
+            SPRITE.texture[0] = '../img/ghost' + SPRITE.index + '_left.gif';
+          }
+          else if( SPRITE.y_direction == -1 ) {
+            SPRITE.texture[0] = '../img/ghost' + SPRITE.index + '_up.gif';
+          }
+          else if( SPRITE.y_direction == 1 ) {
+            SPRITE.texture[0] = '../img/ghost' + SPRITE.index + '_down.gif';
+          }
+        }
+      }
+    "
+  }
+
+  ROUTE GHOSTTIMER.cycleTime TO GHOSTSCRIPT.onUpdate
+}

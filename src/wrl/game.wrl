@@ -1,0 +1,889 @@
+#VRML V2.0 utf8
+#© 2005 Leendert Ullersma, Arjen van der Ende
+
+####################
+
+EXTERNPROTO Layer3D[
+  exposedField SFVec3f bboxSize
+  exposedField SFVec3f bboxCenter
+  eventIn MFNode addChildrenLayer
+  eventIn MFNode removeChildrenLayer
+  exposedField MFNode childrenLayer
+  exposedField SFVec2f translation
+  exposedField SFInt32 depth
+  exposedField SFVec2f size
+  exposedField SFNode background
+  exposedField SFNode viewpoint
+  exposedField MFNode children
+  eventIn MFNode addChildren
+  eventIn MFNode removeChildren
+  ]
+["urn:inet:blaxxun.com:node:Layer3D",
+"http://www.blaxxun.com/vrml/protos/nodes.wrl#Layer3D",
+]
+
+EXTERNPROTO Maze [
+  exposedField SFVec3f    translation
+  exposedField SFRotation rotation
+  exposedField SFVec3f    scale
+]
+[
+  "maze.wrl#Maze"
+]
+
+EXTERNPROTO Sprite [
+  exposedField SFVec3f    translation
+  exposedField SFRotation rotation
+  exposedField SFVec3f    scale
+  exposedField MFString   texture
+  exposedField SFTime     startTime
+  exposedField SFTime     stopTime 
+  exposedField SFFloat    transparency
+]
+[
+  "sprite.wrl#Sprite"
+]
+
+EXTERNPROTO Ghost [
+  exposedField SFVec3f    translation
+  exposedField SFRotation rotation
+  exposedField SFVec3f    scale
+  exposedField MFString   texture
+  exposedField SFFloat    transparency
+  exposedField SFBool     play
+  exposedField SFInt32    x
+  exposedField SFInt32    y
+  exposedField SFBool     x_overlap
+  exposedField SFBool     y_overlap
+  exposedField SFInt32    x_direction
+  exposedField SFInt32    y_direction
+  exposedField SFInt32    index
+  exposedField SFBool     captured
+  exposedField SFBool     dead
+  exposedField SFBool     immune
+  exposedField SFInt32    leaveTime
+]
+[
+  "ghost.wrl#Ghost"
+]
+
+EXTERNPROTO GhostScript [
+  eventIn SFTime onUpdate
+  eventIn SFBool setVisible
+  eventIn SFBool reset
+  exposedField SFNode  SPRITE
+  exposedField SFNode  GRID
+  exposedField SFNode  PACMAN
+  exposedField SFInt32 index
+  exposedField SFInt32 x
+  exposedField SFInt32 y
+  exposedField SFBool  x_overlap
+  exposedField SFBool  y_overlap
+  exposedField SFInt32 x_direction
+  exposedField SFInt32 y_direction
+  exposedField SFBool  captured
+  exposedField SFInt32 leaveTime
+  exposedField SFBool  timerEnabled
+]
+[
+  "ghost_script.wrl#GhostScript"
+]
+
+EXTERNPROTO SoundEffect [
+  eventIn      SFBool   play
+  exposedField MFString url
+]
+[
+  "sound.wrl#SoundEffect"
+]
+
+PROTO Dot [
+  exposedField SFVec3f translation  0 0 0
+  exposedField SFFloat radius       1
+  exposedField SFFloat transparency 0
+]
+{
+  Transform {
+    translation IS translation
+    children [
+      Shape {
+        appearance Appearance {
+          material Material
+          {
+            diffuseColor 1 0.76 0.65
+            transparency IS transparency
+          }
+        }
+        geometry Sphere {
+          radius IS radius
+        }
+      }
+    ]
+  }
+}
+
+EXTERNPROTO GameManager [
+  eventIn      SFInt32 setState
+  eventOut     SFInt32 onGameKeyPress
+  eventOut     SFBool  isGameRunning
+  eventOut     SFTime  onUpdate
+  exposedField SFNode  PACMAN
+  exposedField SFNode  GHOST1
+  exposedField SFNode  GHOST2
+  exposedField SFNode  GHOST3
+  exposedField SFNode  GHOST4
+  exposedField SFNode  INFO
+  exposedField SFNode  LIFE1
+  exposedField SFNode  LIFE2
+  exposedField SFNode  LIFE3
+]
+[
+  "manager.wrl#GameManager"
+]
+
+####################
+
+WorldInfo {
+  title "Pacman"
+}
+
+NavigationInfo {
+  type "none"
+}
+
+####################
+
+
+#Game information
+DEF GAME_INFO_GROUP Shape {
+  appearance Appearance {
+    material Material {
+      diffuseColor 1 1 1
+      emissiveColor 1 1 1
+    }
+  }
+  geometry DEF GAME_INFO Text {
+    string ""
+    fontStyle FontStyle {
+      size 18
+      justify "MIDDLE"
+      family "SANS"
+    }
+  }
+}
+
+## HUD Layer
+DEF LAYER_HUD Layer3D
+{
+  size 0.3 1
+  translation 0.7 0
+
+  background Background {
+    skyColor [ 0 0 0 ]
+  }
+
+  viewpoint Viewpoint {
+    position 0 0 10
+    fieldOfView 0.7
+  }
+
+  children [
+    DEF MINIMAP_CAMERA Viewpoint {
+      position 0 100 0
+      orientation 1 0 0 -1.57
+      fieldOfView 0.9
+    }
+
+    DirectionalLight {
+      direction 0 0 -1
+    }
+
+    Transform {
+      translation -3.5 6 0
+
+      children [
+        ## Red color for titles
+        Appearance {
+          material Material {
+            diffuseColor 1 0 0
+          }
+        }
+
+        Transform {
+          children [
+            Text {
+              string "SCORE"
+            }
+          ]
+        }
+
+        Transform {
+          translation 0 -2.5 0
+          children [
+            Text {
+              string "LEVEL"
+            }
+          ]
+        }
+        
+        Transform {
+          translation 0 -5 0
+          children [
+            Text {
+              string "LIVES"
+            }
+          ]
+        }
+
+        ## White color for scores
+        Appearance {
+          material Material {
+            diffuseColor 1 1 1
+          }
+        }
+
+        Transform {
+          translation 5 -1 0
+          children [
+            DEF TEXT_SCORE Text {
+              string "0"
+
+            fontStyle DEF FONTSTYLE FontStyle {
+              family "SANS"
+              justify "END"
+            }
+
+            }
+          ]
+        }
+
+        Transform {
+          translation 5 -3.5 0
+          children [
+            DEF TEXT_LEVEL Text {
+              string "1"
+              fontStyle USE FONTSTYLE
+            }
+          ]
+        }
+        
+        ## Lives icons
+        DEF LIFE1 Sprite {
+          translation 2.5 -6 0
+          rotation    0 0 1 3.14
+          scale       0.05 0.05 0.05
+          texture "../img/life.gif"
+        }
+        DEF LIFE2 Sprite {
+          translation 3.5 -6 0
+          rotation    0 0 1 3.14
+          scale       0.05 0.05 0.05
+          texture "../img/life.gif"
+        }
+        DEF LIFE3 Sprite {
+          translation 4.5 -6 0
+          rotation    0 0 1 3.14
+          scale       0.05 0.05 0.05
+          texture "../img/life.gif"
+        }
+      ]
+    }
+
+    DEF SCORE Script {
+      eventIn SFInt32 addScore
+      eventIn SFBool  nextLevel
+      field SFInt32 score 0
+      field SFInt32 level 1
+      field SFNode TEXT_SCORE USE TEXT_SCORE
+      field SFNode TEXT_LEVEL USE TEXT_LEVEL      
+
+      url"javascript:
+        function addScore( value, time ) {
+          score += value;
+          TEXT_SCORE.string = score;
+        }
+        
+        function nextLevel( value, time ) {
+          level += 1;
+          TEXT_LEVEL.string[0] = level;
+        }
+      "
+    }
+  ]
+}
+
+DEF LAYER_MINIMAP Layer3D
+{
+  translation 0.725 0.05
+
+  viewpoint USE MINIMAP_CAMERA
+
+  children [
+    DEF WORLD Group {
+      children [
+        DirectionalLight {
+          direction 0 -1 0
+        }
+
+        ## 3D Lights
+        DirectionalLight {
+          direction 1 1 0
+          intensity 0.1
+        }
+        DirectionalLight {
+          direction -1 -1 0
+          intensity 0.1
+        }
+
+        ####################
+
+        #Create maze
+        Maze {}
+
+        #Create game sprites
+        DEF PACMAN Sprite {
+          texture "../img/pacman.gif"
+        }
+
+        DEF BLINKY Ghost {
+          index 0
+        }
+
+        DEF PINKY Ghost {
+          index 1
+        }
+
+        DEF INKY Ghost {
+          index 2
+        }
+
+        DEF CLYDE Ghost {
+          index 3
+        }
+
+        #Create dots
+        DEF DOTGROUP Transform {
+          translation -125 0 -140
+        }
+      ]
+    }
+  ]
+}
+
+## Playfield Layer
+DEF LAYER_PLAYFIELD Layer3D
+{
+  size 0.7 1
+
+  viewpoint DEF CAMERA Viewpoint {
+    position 0 350 0
+    orientation 1 0 0 -1.57
+    fieldOfView 0.9
+  }
+
+  background Background {
+    skyColor [ 0 0 0 ]
+  }
+
+  children [
+    USE WORLD
+
+    ####################
+
+    PROTO GridLine [
+      exposedField MFInt32 values [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 ]
+    ] { }
+
+    DEF GRID Script {
+      field SFInt32 width   26
+      field SFInt32 height  29
+
+      field MFNode grid [
+        GridLine { values [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }
+        GridLine { values [2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2] }
+        GridLine { values [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }
+        GridLine { values [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1] }
+        GridLine { values [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 4, 4, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 4, 4, 4, 4, 4, 4, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [3, 3, 3, 3, 3, 1, 3, 3, 3, 0, 4, 4, 4, 4, 4, 4, 0, 3, 3, 3, 1, 3, 3, 3, 3, 3] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 4, 4, 4, 4, 4, 4, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [0, 0, 0, 0, 0, 1, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 1, 0, 0, 0, 0, 0] }
+        GridLine { values [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] }
+        GridLine { values [2, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2] }
+        GridLine { values [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] }
+        GridLine { values [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0] }
+        GridLine { values [1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] }
+        GridLine { values [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1] }
+        GridLine { values [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }
+      ]
+
+      field MFNode lutToHome [
+        GridLine { values [25, 24, 23, 22, 21, 20, 21, 22, 23, 22, 21, 20, 99, 99, 20, 21, 22, 23, 22, 21, 20, 21, 22, 23, 24, 25] }
+        GridLine { values [24, 99, 99, 99, 99, 19, 99, 99, 99, 99, 99, 19, 99, 99, 19, 99, 99, 99, 99, 99, 19, 99, 99, 99, 99, 24] }
+        GridLine { values [23, 99, 99, 99, 99, 18, 99, 99, 99, 99, 99, 18, 99, 99, 18, 99, 99, 99, 99, 99, 18, 99, 99, 99, 99, 23] }
+        GridLine { values [22, 99, 99, 99, 99, 17, 99, 99, 99, 99, 99, 17, 99, 99, 17, 99, 99, 99, 99, 99, 17, 99, 99, 99, 99, 22] }
+        GridLine { values [21, 20, 19, 18, 17, 16, 15, 14, 13, 14, 15, 16, 17, 17, 16, 15, 14, 13, 14, 15, 16, 17, 18, 19, 20, 21] }
+        GridLine { values [22, 99, 99, 99, 99, 17, 99, 99, 12, 99, 99, 99, 99, 99, 99, 99, 99, 12, 99, 99, 17, 99, 99, 99, 99, 22] }
+        GridLine { values [23, 99, 99, 99, 99, 18, 99, 99, 11, 99, 99, 99, 99, 99, 99, 99, 99, 11, 99, 99, 18, 99, 99, 99, 99, 23] }
+        GridLine { values [24, 23, 22, 21, 20, 19, 99, 99, 10,  9,  8,  7, 99, 99,  7,  8,  9, 10, 99, 99, 19, 20, 21, 22, 23, 24] }
+        GridLine { values [99, 99, 99, 99, 99, 18, 99, 99, 99, 99, 99,  6, 99, 99,  6, 99, 99, 99, 99, 99, 18, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 17, 99, 99, 99, 99, 99,  5, 99, 99,  5, 99, 99, 99, 99, 99, 17, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 16, 99, 99,  7,  6,  5,  4,  3,  3,  4,  5,  6,  7, 99, 99, 16, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 15, 99, 99,  8, 99, 99, 99,  2,  2, 99, 99, 99,  8, 99, 99, 15, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 14, 99, 99,  9, 99,  4,  4,  1,  1,  4,  4, 99,  9, 99, 99, 14, 99, 99, 99, 99, 99] }
+        GridLine { values [18, 17, 16, 15, 14, 13, 12, 11, 10, 99,  4,  4,  0,  0,  4,  4, 99, 10, 11, 12, 13, 14, 15, 16, 17, 18] }
+        GridLine { values [99, 99, 99, 99, 99, 14, 99, 99, 11, 99,  4,  4,  4,  4,  4,  4, 99, 11, 99, 99, 14, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 15, 99, 99, 12, 99, 99, 99, 99, 99, 99, 99, 99, 12, 99, 99, 15, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 16, 99, 99, 13, 14, 15, 16, 17, 17, 16, 15, 14, 13, 99, 99, 16, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 17, 99, 99, 14, 99, 99, 99, 99, 99, 99, 99, 99, 14, 99, 99, 17, 99, 99, 99, 99, 99] }
+        GridLine { values [99, 99, 99, 99, 99, 18, 99, 99, 15, 99, 99, 99, 99, 99, 99, 99, 99, 15, 99, 99, 18, 99, 99, 99, 99, 99] }
+        GridLine { values [24, 23, 22, 21, 20, 19, 18, 17, 16, 17, 18, 19, 99, 99, 19, 18, 17, 16, 17, 18, 19, 20, 21, 22, 23, 24] }
+        GridLine { values [25, 99, 99, 99, 99, 20, 99, 99, 99, 99, 99, 20, 99, 99, 20, 99, 99, 99, 99, 99, 20, 99, 99, 99, 99, 25] }
+        GridLine { values [26, 99, 99, 99, 99, 21, 99, 99, 99, 99, 99, 21, 99, 99, 21, 99, 99, 99, 99, 99, 21, 99, 99, 99, 99, 26] }
+        GridLine { values [27, 28, 29, 99, 99, 22, 23, 24, 25, 24, 23, 22, 23, 23, 22, 23, 24, 25, 24, 23, 22, 99, 99, 29, 28, 27] }
+        GridLine { values [99, 99, 30, 99, 99, 23, 99, 99, 26, 99, 99, 99, 99, 99, 99, 99, 99, 26, 99, 99, 23, 99, 99, 30, 99, 99] }
+        GridLine { values [99, 99, 29, 99, 99, 24, 99, 99, 27, 99, 99, 99, 99, 99, 99, 99, 99, 27, 99, 99, 24, 99, 99, 29, 99, 99] }
+        GridLine { values [30, 29, 28, 27, 26, 25, 99, 99, 28, 29, 30, 31, 99, 99, 31, 30, 29, 28, 99, 99, 25, 26, 27, 28, 29, 30] }
+        GridLine { values [31, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 32, 99, 99, 32, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 31] }
+        GridLine { values [32, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 33, 99, 99, 33, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 32] }
+        GridLine { values [33, 34, 35, 36, 37, 38, 39, 38, 37, 36, 35, 34, 35, 35, 34, 35, 36, 37, 38, 39, 38, 37, 36, 35, 34, 33] }
+      ]
+
+      field MFNode lut [
+        GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }
+        GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }
+        GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }
+        GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }
+        GridLine { }    GridLine { }    GridLine { }    GridLine { }    GridLine { }
+      ]
+    }
+
+    DEF DOTBUILDER Script {
+      eventOut  MFNode newChildren
+      eventIn   SFBool reset
+      field     SFNode GRID     USE GRID
+      field     SFNode DOTGROUP USE DOTGROUP
+
+      url "javascript:
+        function initialize() {
+          /* Create grid */
+          for(y = 0; y < GRID.height; y++) {
+            for(x = 0; x < GRID.width; x++) {
+              value = GRID.grid[y].values[x];
+              if( value >= 1 && value <= 2 )
+              {
+                value *= value;
+                newVRML =  'Dot {';
+                newVRML += '  translation ' + x*10 + ' 0 ' + y*10;
+                newVRML += '  radius ' + value;
+                newVRML += '}';
+
+                newChildren = Browser.createVrmlFromString(newVRML);
+                GRID.lut[y].values[x] = DOTGROUP.children.length -1;
+              }
+            }
+          }
+        }
+        
+        function reset( value ) {
+          /* Reset the grid */
+          for(y = 0; y < GRID.height; y++) {
+            for(x = 0; x < GRID.width; x++) {
+              index = GRID.lut[y].values[x];
+              if( index >= 0 ) {
+                DOTGROUP.children[index].transparency = 0;
+              }
+            }
+          }
+        }
+      "
+    }
+
+    DEF SOUND_EAT1 SoundEffect {
+      url "../sounds/hap1.wav"
+    }
+    DEF SOUND_EAT2 SoundEffect {
+      url "../sounds/hap2.wav"
+    }
+    
+    DEF CAMERA_SCRIPT Script {
+      eventIn SFBool     reset
+      eventIn SFVec3f    setPosition
+      eventIn SFRotation setOrientation
+      eventIn SFBool     setHeadlight
+      
+      field SFNode CAMERA USE CAMERA
+      field SFNode MINIMAP_CAMERA USE MINIMAP_CAMERA
+      
+      url "javascript:
+        function reset( value, time ) {
+          CAMERA.position = new SFVec3f(0, 350, 0);
+          CAMERA.orientation = new SFRotation(1, 0, 0, -1.57);
+          MINIMAP_CAMERA.position = new SFVec3f(0, 100, 0);
+        }
+        
+        function setPosition( value, time ) {
+          CAMERA.position = value;
+          CAMERA.position.y = value.y - 2;
+          
+          /* Update minimap */
+          MINIMAP_CAMERA.position = value;
+          MINIMAP_CAMERA.position.y = 110;
+        }
+
+        function setOrientation( value, time ) {
+          CAMERA.orientation = value;
+        }
+      "
+    }
+    
+    DEF PACMAN_SCRIPT Script {
+      ## Events
+      eventIn   SFInt32 onKeyPress
+      eventIn   SFTime  onUpdate
+      eventIn   SFBool  onDeath
+      eventIn   SFBool  reset
+      eventIn   SFBool  setVisible
+      eventOut  MFNode  newChildren
+
+      ## Includes
+      field     SFNode  PACMAN      USE PACMAN
+      field     SFNode  DOTGROUP    USE DOTGROUP
+      field     SFNode  DOTBUILDER  USE DOTBUILDER
+      field     SFNode  GRID        USE GRID
+      field     SFNode  SCORE       USE SCORE
+      field     SFNode  SOUND_EAT1  USE SOUND_EAT1
+      field     SFNode  SOUND_EAT2  USE SOUND_EAT2
+      field     SFNode  CAMERA      USE CAMERA_SCRIPT
+      field     SFNode  MINIMAP     USE LAYER_MINIMAP
+
+      ## Pacman Location
+      field     SFInt32 x           12
+      field     SFInt32 y           22
+      field     SFBool  x_overlap   TRUE  /* Overlap two squares on x-axis? */
+      field     SFBool  y_overlap   FALSE /* Overlap two squares on y-axis? */
+      field     SFInt32 x_direction -1
+      field     SFInt32 y_direction  0
+
+      field     SFInt32 invincible  0
+      field     SFBool  dead        FALSE
+      field     SFBool  mode3d      FALSE
+
+      ## Dot control
+      field     SFInt32 dot_count   244
+      field     SFInt32 inv_count   0
+
+      ## Action Keys
+      field     SFBool  keyUp     FALSE
+      field     SFBool  keyDown   FALSE
+      field     SFBool  keyLeft   FALSE
+      field     SFBool  keyRight  FALSE
+
+      url "javascript:
+        function setVisible( value, time ) {
+          if( value ) {
+            PACMAN.transparency = 0;
+          }
+          else {
+            PACMAN.transparency = 1;
+          }
+        }
+      
+        function onKeyPress( value, time ) {
+          enableHandler = FALSE;
+          if( value >= 1004 && value <= 1007 ) {
+            keyUp = keyDown = keyLeft = keyRight = FALSE;
+            if     ( value == 1004 ) { keyUp    = TRUE; enableHandler = TRUE; }
+            else if( value == 1005 ) { keyDown  = TRUE; enableHandler = TRUE; }
+            else if( value == 1006 ) { keyLeft  = TRUE; enableHandler = TRUE; }
+            else if( value == 1007 ) { keyRight = TRUE; enableHandler = TRUE; }
+          }
+          else if( value == 32 ) {
+            // Go 3D
+            mode3d = !mode3d;
+            //CAMERA.setHeadlight= mode3d;
+            if( !mode3d ) {
+              CAMERA.reset = TRUE;
+              MINIMAP.size = new SFVec2f( 0, 0 );
+            }
+            else {
+              MINIMAP.size = new SFVec2f( 0.25, 0.25 );
+            }
+          }
+        }
+
+        function updateDirection() {
+          wantsUp    = keyUp;
+          wantsRight = keyRight;
+          wantsDown  = keyDown;
+          wantsLeft  = keyLeft;
+          
+          print( keyUp + ' ' + keyRight + ' ' + keyDown + ' ' + keyLeft );
+          
+          if( mode3d ) {
+            if( PACMAN.rotation.angle >= -0.5 && PACMAN.rotation.angle <= 0.5 ) {
+              print( 'direction left' );
+              wantsUp    = keyRight;
+              wantsRight = keyDown;
+              wantsDown  = keyLeft;
+              wantsLeft  = keyUp;
+            }
+            else if( PACMAN.rotation.angle >= 1.50 && PACMAN.rotation.angle <= 1.60 ) {
+              wantsUp    = keyDown;
+              wantsRight = keyLeft;
+              wantsDown  = keyUp;
+              wantsLeft  = keyRight;
+            }
+            else if( PACMAN.rotation.angle >= 3.10 && PACMAN.rotation.angle <= 3.20 ) {
+              wantsUp    = keyLeft;
+              wantsRight = keyUp;
+              wantsDown  = keyRight;
+              wantsLeft  = keyDown;
+            }
+          }
+          
+          /* Check pressed keys */
+          if( wantsUp && y_direction != -1 && x_overlap == FALSE && y > 0 ) {
+            line = GRID.grid[y-1].values;
+            if( line[x] >= 1 && line[x] <= 3 ) {
+              x_direction =  0;
+              y_direction = -1;
+              PACMAN.rotation = new SFRotation(0, 0, 1, -1.57);
+              keyUp = keyLeft = keyDown = keyRight = FALSE;
+            }
+          }
+          else if( wantsDown && y_direction != 1 && x_overlap == FALSE && y < GRID.height-1 )  {
+            line = GRID.grid[y+1].values;
+            if( line[x] >= 1 && line[x] <= 3 ) {
+              x_direction = 0;
+              y_direction = 1;
+              PACMAN.rotation = new SFRotation(0, 0, 1, 1.57);
+              keyUp = keyLeft = keyDown = keyRight = FALSE;
+            }
+          }
+          else if( wantsLeft && x_direction != -1 && y_overlap == FALSE && x > 0 )  {
+            line = GRID.grid[y].values;
+            if( line[x-1] >= 1 && line[x-1] <= 3 ) {
+              x_direction = -1;
+              y_direction =  0;
+              PACMAN.rotation = new SFRotation(0, 0, 1, 0);
+              keyUp = keyLeft = keyDown = keyRight = FALSE;
+            }
+          }
+          else if( wantsRight && x_direction != 1 && y_overlap == FALSE && x < GRID.width-1 ) {
+            line = GRID.grid[y].values;
+            if( line[x+1] >= 1 && line[x+1] <= 3 ) {
+              x_direction = 1;
+              y_direction = 0;
+              PACMAN.rotation = new SFRotation(0, 0, 1, 3.14);
+              keyUp = keyLeft = keyDown = keyRight = FALSE;
+            }
+          }
+        }
+
+        function onUpdate( value, time ) {
+          if( invincible > 0 ) { invincible -= 1; }
+          if( dead == FALSE ) {
+            updateDirection();
+
+            /* Update position */
+            if( x_direction < 0 ) {
+              if( !x_overlap ) { x -= 1; }
+              x_overlap = !x_overlap;
+            }
+            else if( x_direction > 0 ) {
+              if( x_overlap ) { x += 1; }
+              x_overlap = !x_overlap;
+            }
+            else if( y_direction < 0 ) {
+              if( !y_overlap ) { y -= 1; }
+              y_overlap = !y_overlap;
+            }
+            else if( y_direction > 0 ) {
+              if( y_overlap ) { y += 1; }
+              y_overlap = !y_overlap;
+            }
+
+            /* Check for teleport */
+            if (x == 0  && y == 13 && x_direction < 0 ) { x = 25; }
+            if (x == 25 && y == 13 && x_direction > 0 ) { x = 0;  }
+
+            /* Calculate new absolute coordinates for pacman */
+            new_x = (x - 12.5) * 10 + ( x_overlap ? 5 : 0 );
+            new_y = (y - 14)   * 10 + ( y_overlap ? 5 : 0 );
+            PACMAN.translation = new SFVec3f(new_x, 4.1, new_y);
+            
+            /* Set camera position, if 3d-mode is active */
+            if( mode3d ) {
+              CAMERA.setPosition = PACMAN.translation;
+              CAMERA.setOrientation = new SFRotation(0, 1, 0, PACMAN.rotation.angle + 1.57);
+            }
+
+            /* Dot detection */
+            if( x_overlap == 0 && y_overlap == 0 ) {
+
+              /* Check if the current field has a dot */
+              index = GRID.lut[y].values[x];
+              if( index >= 0 && DOTGROUP.children[index].transparency == 0 ) {
+                /* 'eat' the dot */
+                dot_count -= 1;
+                value = GRID.grid[y].values[x];
+                DOTGROUP.children[index].transparency = 1;
+
+                /* Add the score */
+                if( value == 1 ) { SCORE.addScore = 10; }
+                if( value == 2 ) { SCORE.addScore = 50; inv_count += 1; invincible = 100; }
+                
+                if( (dot_count % 2) == 0 ) {
+                  SOUND_EAT1.play = TRUE;
+                }
+                else {
+                  SOUND_EAT2.play = TRUE;
+                }
+              }
+            }
+
+            /* Check if pacman can continue is this direction, otherwise stop */
+            if ( x_direction == -1 && x_overlap == FALSE ) {
+              if( x <= 0 || GRID.grid[y].values[x-1] < 1 || GRID.grid[y].values[x-1] > 3 ) {
+                x_direction = 0;
+              }
+            }
+            else if( x_direction ==  1 && x_overlap == FALSE ) {
+              if( x >= GRID.width -1 || GRID.grid[y].values[x+1] < 1 || GRID.grid[y].values[x+1] > 3 ) {
+                x_direction = 0;
+              }
+            }
+            else if( y_direction == -1 && y_overlap == FALSE ) {
+              if( y <= 0 || GRID.grid[y-1].values[x] < 1 || GRID.grid[y-1].values[x] > 3 ) {
+                y_direction = 0;
+              }
+            }
+            else if( y_direction ==  1 && y_overlap == FALSE ) {
+              if( y >= GRID.height -1 || GRID.grid[y+1].values[x] < 1 || GRID.grid[y+1].values[x] > 3) {
+                y_direction = 0;
+              }
+            }
+          }
+        }
+
+        function onDeath( value, time ) {
+          if( value ) {
+            dead = TRUE;
+            PACMAN.rotation  = new SFRotation(0, 0, 1, 0);
+            PACMAN.texture   = '../img/pacman_die.gif';
+            PACMAN.startTime = time;
+            PACMAN.stopTime  = time + 1;
+          }
+        }
+        
+        function reset( value, time ) {
+          /* Reset all variables */
+          PACMAN.translation = new SFVec3f(0, 2.1, 80);
+          PACMAN.rotation = new SFRotation(0, 0, 1, 0);
+          PACMAN.texture  = '../img/pacman.gif';
+          x = 12;
+          y = 22;
+          x_direction = -1;
+          y_direction = 0;
+          x_overlap = TRUE;
+          y_overlap = FALSE;
+          dead = FALSE;
+          invincible = 0;
+          keyUp = keyDown = keyLeft = keyRight = FALSE;
+          
+          /* If new level, reset dot_count */
+          if( value ) {
+            inv_count = 0;
+            dot_count = 244;
+            DOTBUILDER.reset = TRUE;
+            SCORE.addScore  = 1000;
+            SCORE.nextLevel = TRUE;
+          }
+        }
+      "
+    }
+
+    DEF BLINKY_SCRIPT GhostScript {
+      SPRITE USE BLINKY
+      GRID   USE GRID
+      PACMAN USE PACMAN_SCRIPT
+    }
+
+    DEF PINKY_SCRIPT GhostScript {
+      SPRITE USE PINKY
+      GRID   USE GRID
+      PACMAN USE PACMAN_SCRIPT
+    }
+
+    DEF INKY_SCRIPT GhostScript {
+      SPRITE USE INKY
+      GRID   USE GRID
+      PACMAN USE PACMAN_SCRIPT
+    }
+
+    DEF CLYDE_SCRIPT GhostScript {
+      SPRITE USE CLYDE
+      GRID   USE GRID
+      PACMAN USE PACMAN_SCRIPT
+    }
+
+    ####################
+
+    DEF MANAGER GameManager {
+      PACMAN USE PACMAN_SCRIPT
+      GHOST1 USE BLINKY_SCRIPT
+      GHOST2 USE PINKY_SCRIPT
+      GHOST3 USE INKY_SCRIPT
+      GHOST4 USE CLYDE_SCRIPT
+      INFO   USE GAME_INFO
+      LIFE1  USE LIFE1
+      LIFE2  USE LIFE2
+      LIFE3  USE LIFE3
+    }
+
+
+    ## Build events
+    ROUTE DOTBUILDER.newChildren    TO DOTGROUP.addChildren
+    ROUTE PACMAN_SCRIPT.newChildren TO DOTGROUP.addChildren
+
+    ## Keyboard events
+    ROUTE MANAGER.onGameKeyPress    TO PACMAN_SCRIPT.onKeyPress
+
+    ## Timer events
+    ROUTE MANAGER.onUpdate          TO PACMAN_SCRIPT.onUpdate
+    ROUTE MANAGER.isGameRunning     TO BLINKY_SCRIPT.timerEnabled
+    ROUTE MANAGER.isGameRunning     TO PINKY_SCRIPT.timerEnabled
+    ROUTE MANAGER.isGameRunning     TO INKY_SCRIPT.timerEnabled
+    ROUTE MANAGER.isGameRunning     TO CLYDE_SCRIPT.timerEnabled
+  ]
+}
+
+# Playfield Layer
+DEF GAME_INFO_LAYER Layer3D
+{
+  size 0.7 1
+
+  viewpoint DEF CAMERA Viewpoint {
+    position 0 26 400
+  }
+
+  children [
+    USE GAME_INFO_GROUP
+  ]
+}
+
+####################

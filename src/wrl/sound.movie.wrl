@@ -1,0 +1,46 @@
+#VRML V2.0 utf8
+#© 2005 Leendert Ullersma, Arjen van der Ende
+
+####################
+
+PROTO SoundEffect [
+  eventIn      SFBool   play
+  exposedField SFBool   loop FALSE
+  exposedField MFString url ""
+]
+{
+  Shape {
+    appearance Appearance {
+      texture DEF SOUND MovieTexture {
+        startTime -1
+        stopTime 0
+        loop IS loop
+        url IS url
+      }
+    }
+    geometry Box {
+      size 0 0 0
+    }
+  }
+
+  DEF SOUND_SCRIPT Script {
+    ## Events
+    eventIn   SFBool setSoundActive
+    eventIn   SFBool play      IS play
+    
+    ## Includes
+    field SFNode SOUND USE SOUND
+
+    url "javascript:
+      function play( value, time ) {
+        if( value ) {
+          SOUND.startTime = time;
+          SOUND.endTime = time + 5;
+        }
+        else {
+          SOUND.endTime = time;
+        }
+      }
+    "
+  }
+}

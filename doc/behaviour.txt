@@ -1,0 +1,4 @@
+- Chase pacman directly
+- Try to cut off pacman from where he's heading
+- Wander around the part of the map where there is still plenty of dots
+- Wander randomly.
